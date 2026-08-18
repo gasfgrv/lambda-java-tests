@@ -1,0 +1,61 @@
+# ========================
+# Maven / Java
+# ========================
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.log
+hs_err_pid*
+replay_pid*
+
+# ========================
+# Terraform
+# ========================
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/.terraform.lock.hcl
+terraform/*.tfplan
+
+# ========================
+# LocalStack
+# ========================
+.localstack/
+
+# ========================
+# Variáveis de ambiente
+# ========================
+.env
+
+# ========================
+# IDEs
+# ========================
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# VS Code
+.vscode/
+
+# Eclipse
+.classpath
+.project
+.settings/
+
+# ========================
+# Maven wrapper (se usado)
+# ========================
+.maven-home/
+.mvn/wrapper/maven-wrapper.jar
+
+# ========================
+# OS
+# ========================
+.DS_Store
+Thumbs.db
+desktop.ini
