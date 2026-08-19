@@ -1,6 +1,3 @@
-data "aws_region" "current" {}
-
-
 resource "aws_api_gateway_rest_api" "nba_franchises_api" {
   name = "nba-franchises-api"
 }
@@ -55,7 +52,7 @@ resource "aws_api_gateway_deployment" "local" {
 resource "aws_api_gateway_stage" "local" {
   rest_api_id   = aws_api_gateway_rest_api.nba_franchises_api.id
   deployment_id = aws_api_gateway_deployment.local.id
-  stage_name    = "local"
+  stage_name    = local.stage_name
 }
 
 output "api_id" {
@@ -63,5 +60,5 @@ output "api_id" {
 }
 
 output "api_url" {
-  value = "http://localhost:4566/restapis/${aws_api_gateway_rest_api.nba_franchises_api.id}/local/_user_request_/franchises"
+  value = "http://localhost:4566/restapis/${aws_api_gateway_rest_api.nba_franchises_api.id}/${local.stage_name}/_user_request_${local.endpoint}"
 }

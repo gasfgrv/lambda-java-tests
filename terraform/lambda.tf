@@ -14,33 +14,33 @@ resource "null_resource" "build_lambda" {
 
 resource "aws_lambda_function" "save_nba_franchises" {
   function_name    = "SaveNbaFranchisesLambda"
-  runtime          = "java21"
-  handler          = "com.gasfgrv.franchises.handler.SaveNbaFranchisesLambda::handleRequest"
+  runtime          = local.runtime
+  handler          = "${local.handler_package}.SaveNbaFranchisesLambda::${local.handler_method}"
   role             = aws_iam_role.lambda_role.arn
-  filename         = "../target/nba-franchises-lambda.jar"
-  source_code_hash = filebase64sha256("${dirname(path.module)}/../target/nba-franchises-lambda.jar")
+  filename         = local.jar_file
+  source_code_hash = filebase64sha256("${dirname(path.module)}/${local.jar_file}")
 
   environment {
     variables = {
-      TABLE_NAME       = "tb-franchise"
-      AWS_ENDPOINT_URL = "http://host.docker.internal:4566"
-      AWS_REGION       = "us-east-1"
+      TABLE_NAME       = aws_dynamodb_table.franchise_tb.name
+      AWS_ENDPOINT_URL = local.docker_host
+      AWS_REGION       = data.aws_region.current.id
     }
   }
 }
 
 resource "aws_lambda_function" "get_nba_franchises" {
   function_name    = "GetNbaFranchiseLambda"
-  runtime          = "java21"
-  handler          = "com.gasfgrv.franchises.handler.GetNbaFranchiseLambda::handleRequest"
+  runtime          = local.runtime
+  handler          = "${local.handler_package}.GetNbaFranchiseLambda::${local.handler_method}"
   role             = aws_iam_role.lambda_role.arn
-  filename         = "../target/nba-franchises-lambda.jar"
-  source_code_hash = filebase64sha256("${dirname(path.root)}/../target/nba-franchises-lambda.jar")
+  filename         = local.jar_file
+  source_code_hash = filebase64sha256("${dirname(path.root)}/${local.jar_file}")
   environment {
     variables = {
-      TABLE_NAME       = "tb-franchise"
-      AWS_ENDPOINT_URL = "http://host.docker.internal:4566"
-      AWS_REGION       = "us-east-1"
+      TABLE_NAME       = aws_dynamodb_table.franchise_tb.name
+      AWS_ENDPOINT_URL = local.docker_host
+      AWS_REGION       = data.aws_region.current.id
     }
   }
 }
@@ -50,7 +50,7 @@ resource "aws_lambda_permission" "api_gateway_save_invoke" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.save_nba_franchises.function_name
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_api_gateway_rest_api.nba_franchises_api.execution_arn}/*/POST/franchises"
+  source_arn    = "${aws_api_gateway_rest_api.nba_franchises_api.execution_arn}/*/POST${local.endpoint}"
 }
 
 resource "aws_lambda_permission" "api_gateway_get_invoke" {
@@ -58,5 +58,5 @@ resource "aws_lambda_permission" "api_gateway_get_invoke" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.get_nba_franchises.function_name
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_api_gateway_rest_api.nba_franchises_api.execution_arn}/*/GET/franchises"
+  source_arn    = "${aws_api_gateway_rest_api.nba_franchises_api.execution_arn}/*/GET${local.endpoint}"
 }
