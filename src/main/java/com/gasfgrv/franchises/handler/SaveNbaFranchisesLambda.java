@@ -1,11 +1,14 @@
 package com.gasfgrv.franchises.handler;
 
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
+import com.amazonaws.services.lambda.runtime.logging.LogLevel;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gasfgrv.franchises.exception.FranchiseAlreadyExistsException;
 import com.gasfgrv.franchises.model.Franchise;
@@ -34,17 +37,22 @@ public class SaveNbaFranchisesLambda
     }
 
     @Override
+    @SuppressWarnings("UseSpecificCatch")
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent request, Context context) {
+        var logger = context.getLogger();
+
         try {
             if (request.getBody() == null || request.getBody().isBlank()) {
+                logger.log("Request body is required", LogLevel.WARN);
                 return responseFactory.json(400, Map.of("message", "Request body is required"));
             }
 
             var franchise = OBJECT_MAPPER.readValue(request.getBody(), Franchise.class);
-            var validationError = validate(franchise);
+            var validationErrors = validate(franchise);
 
-            if (validationError != null) {
-                return responseFactory.json(400, Map.of("message", validationError));
+            if (!validationErrors.isEmpty()) {
+                logger.log("Error validating: " + validationErrors, LogLevel.WARN);
+                return responseFactory.json(400, Map.of("message", validationErrors));
             }
 
             repository.save(franchise);
@@ -53,43 +61,46 @@ public class SaveNbaFranchisesLambda
                     "message", "Franchise saved successfully",
                     "id", franchise.id()));
         } catch (FranchiseAlreadyExistsException exception) {
+            logger.log(exception.getMessage(), LogLevel.WARN);
             return responseFactory.json(409, Map.of("message", exception.getMessage()));
         } catch (Exception exception) {
-            context.getLogger().log("Error saving franchise: " + exception.getMessage());
+            logger.log("Error saving franchise: " + exception.getMessage(), LogLevel.ERROR);
             return responseFactory.json(500, Map.of("message", "Internal server error"));
         }
     }
 
-    private String validate(Franchise franchise) {
+    private Set<String> validate(Franchise franchise) {
+        var errors = new HashSet<String>();
+
         if (franchise.id() == null || franchise.id().isBlank()) {
-            return "id is required";
+            errors.add("id is required");
         }
 
         if (franchise.name() == null || franchise.name().isBlank()) {
-            return "name is required";
+            errors.add("name is required");
         }
 
         if (franchise.foundationYear() == null || franchise.foundationYear() <= 0) {
-            return "foundationYear must be positive";
+            errors.add("foundationYear must be positive");
         }
 
         if (franchise.city() == null || franchise.city().isBlank()) {
-            return "city is required";
+            errors.add("city is required");
         }
 
         if (franchise.titles() == null || franchise.titles() < 0) {
-            return "titles must be zero or positive";
+            errors.add("titles must be zero or positive");
         }
 
         if (franchise.conferenceTitles() == null || franchise.conferenceTitles() < 0) {
-            return "conferenceTitles must be zero or positive";
+            errors.add("conferenceTitles must be zero or positive");
         }
 
         if (franchise.conference() == null) {
-            return "conference is required";
+            errors.add("conference is required");
         }
 
-        return null;
+        return errors;
     }
 
 }

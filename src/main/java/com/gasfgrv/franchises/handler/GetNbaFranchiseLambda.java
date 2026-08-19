@@ -6,6 +6,7 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
+import com.amazonaws.services.lambda.runtime.logging.LogLevel;
 import com.gasfgrv.franchises.repository.FranchiseRepository;
 import com.gasfgrv.franchises.response.ApiResponseFactory;
 import com.gasfgrv.franchises.util.DynamoDbClientFactory;
@@ -30,10 +31,13 @@ public class GetNbaFranchiseLambda
 
     @Override
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent request, Context context) {
+        var logger = context.getLogger();
+        
         try {
             var queryParams = request.getQueryStringParameters();
 
             if (queryParams == null || !queryParams.containsKey("id") || queryParams.get("id").isBlank()) {
+                logger.log("Query parameter 'id' is required", LogLevel.WARN);
                 return responseFactory.json(400, Map.of("message", "Query parameter id is required"));
             }
 
@@ -41,9 +45,12 @@ public class GetNbaFranchiseLambda
 
             return repository.findById(id)
                     .map(franchise -> responseFactory.json(200, franchise))
-                    .orElseGet(() -> responseFactory.json(404, Map.of("message", "Franchise not found: " + id)));
+                    .orElseGet(() -> {
+                        logger.log("Franchise not found: " + id, LogLevel.WARN);
+                        return responseFactory.json(404, Map.of("message", "Franchise not found: " + id));
+                    });
         } catch (Exception exception) {
-            context.getLogger().log("Error getting franchise: " + exception.getMessage());
+            logger.log("Error getting franchise: " + exception.getMessage(), LogLevel.ERROR);
             return responseFactory.json(500, Map.of("message", "Internal server error"));
         }
     }

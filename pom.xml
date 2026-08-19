@@ -86,7 +86,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.3</version>
                 <configuration>
-                    <argLine>--add-opens=java.base/java.lang=ALL-UNNAMED</argLine>
+                    <argLine>--add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED</argLine>
                 </configuration>
             </plugin>
             <plugin>

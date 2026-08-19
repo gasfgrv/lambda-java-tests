@@ -1,21 +1,23 @@
 package com.gasfgrv.franchises.handler;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import static org.mockito.ArgumentMatchers.any;
 import org.mockito.Mock;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.amazonaws.services.lambda.runtime.Context;
+import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
+import com.amazonaws.services.lambda.runtime.logging.LogLevel;
 import com.gasfgrv.franchises.exception.FranchiseAlreadyExistsException;
 import com.gasfgrv.franchises.model.Conference;
 import com.gasfgrv.franchises.model.Franchise;
@@ -31,10 +33,14 @@ public class SaveNbaFranchisesLambdaTest {
     @Mock
     private Context context;
 
+    @Mock
+    private LambdaLogger logger;
+
     private SaveNbaFranchisesLambda lambda;
 
     @BeforeEach
     void setUp() {
+        when(context.getLogger()).thenReturn(logger);
         lambda = new SaveNbaFranchisesLambda(repository, new ApiResponseFactory());
     }
 
@@ -81,7 +87,9 @@ public class SaveNbaFranchisesLambdaTest {
 
         assertThat(response.getStatusCode()).isEqualTo(400);
         assertThat(response.getBody()).contains("Request body is required");
+        
         verify(repository, never()).save(any());
+        verify(logger).log("Request body is required", LogLevel.WARN);
     }
 
     @Test
@@ -93,7 +101,9 @@ public class SaveNbaFranchisesLambdaTest {
 
         assertThat(response.getStatusCode()).isEqualTo(400);
         assertThat(response.getBody()).contains("Request body is required");
+        
         verify(repository, never()).save(any());
+        verify(logger).log("Request body is required", LogLevel.WARN);
     }
 
     @Test
@@ -116,7 +126,9 @@ public class SaveNbaFranchisesLambdaTest {
 
         assertThat(response.getStatusCode()).isEqualTo(400);
         assertThat(response.getBody()).contains("id is required");
+        
         verify(repository, never()).save(any());
+        verify(logger).log("Error validating: [id is required]", LogLevel.WARN);
     }
 
     @Test
@@ -133,7 +145,28 @@ public class SaveNbaFranchisesLambdaTest {
 
         assertThat(response.getStatusCode()).isEqualTo(409);
         assertThat(response.getBody()).contains("Franchise already exists: lal");
+        
         verify(repository).save(any(Franchise.class));
+        verify(logger).log("Franchise already exists: lal", LogLevel.WARN);
+    }
+
+    @Test
+    @DisplayName("Cenário 06: Retornar 500 quando ocorrer uma exceção")
+    void test_06() {
+        doThrow(new RuntimeException("Database error"))
+                .when(repository)
+                .save(any(Franchise.class));
+
+        var request = new APIGatewayProxyRequestEvent()
+                .withBody(validBody());
+
+        var response = lambda.handleRequest(request, context);
+
+        assertThat(response.getStatusCode()).isEqualTo(500);
+        assertThat(response.getBody()).contains("Internal server error");
+        
+        verify(repository).save(any(Franchise.class));
+        verify(logger).log("Error saving franchise: Database error", LogLevel.ERROR);
     }
 
     private String validBody() {

@@ -1,23 +1,24 @@
 package com.gasfgrv.franchises.handler;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 import java.util.Map;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import static org.mockito.ArgumentMatchers.anyString;
 import org.mockito.Mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.amazonaws.services.lambda.runtime.Context;
+import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
+import com.amazonaws.services.lambda.runtime.logging.LogLevel;
 import com.gasfgrv.franchises.model.Conference;
 import com.gasfgrv.franchises.model.Franchise;
 import com.gasfgrv.franchises.repository.FranchiseRepository;
@@ -32,10 +33,14 @@ public class GetNbaFranchiseLambdaTest {
     @Mock
     private Context context;
 
+    @Mock
+    private LambdaLogger logger;
+
     private GetNbaFranchiseLambda lambda;
 
     @BeforeEach
     void setUp() {
+        when(context.getLogger()).thenReturn(logger);
         lambda = new GetNbaFranchiseLambda(repository, new ApiResponseFactory());
     }
 
@@ -64,7 +69,9 @@ public class GetNbaFranchiseLambdaTest {
 
         assertThat(response.getStatusCode()).isEqualTo(400);
         assertThat(response.getBody()).contains("Query parameter id is required");
+
         verify(repository, never()).findById(anyString());
+        verify(logger).log("Query parameter 'id' is required", LogLevel.WARN);
     }
 
     @Test
@@ -77,7 +84,9 @@ public class GetNbaFranchiseLambdaTest {
 
         assertThat(response.getStatusCode()).isEqualTo(400);
         assertThat(response.getBody()).contains("Query parameter id is required");
+
         verify(repository, never()).findById(anyString());
+        verify(logger).log("Query parameter 'id' is required", LogLevel.WARN);
     }
 
     @Test
@@ -90,7 +99,9 @@ public class GetNbaFranchiseLambdaTest {
 
         assertThat(response.getStatusCode()).isEqualTo(400);
         assertThat(response.getBody()).contains("Query parameter id is required");
+
         verify(repository, never()).findById(anyString());
+        verify(logger).log("Query parameter 'id' is required", LogLevel.WARN);
     }
 
     @Test
@@ -105,7 +116,26 @@ public class GetNbaFranchiseLambdaTest {
 
         assertThat(response.getStatusCode()).isEqualTo(404);
         assertThat(response.getBody()).contains("Franchise not found: lal");
+
         verify(repository).findById("lal");
+        verify(logger).log("Franchise not found: lal", LogLevel.WARN);
+    }
+
+    @Test
+    @DisplayName("Cenário 06: Retornar 500 quando ocorrer uma exceção")
+    void test_06() {
+        when(repository.findById("lal")).thenThrow(new RuntimeException("Database error"));
+
+        var request = new APIGatewayProxyRequestEvent()
+                .withQueryStringParameters(Map.of("id", "lal"));
+
+        var response = lambda.handleRequest(request, context);
+
+        assertThat(response.getStatusCode()).isEqualTo(500);
+        assertThat(response.getBody()).contains("Internal server error");
+
+        verify(repository).findById("lal");
+        verify(logger).log("Error getting franchise: Database error", LogLevel.ERROR);
     }
 
     private Franchise mountFranchise() {
